@@ -1,4 +1,4 @@
-import time
+import os
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
+cd_dir = os.getcwd() + os.sep + 'chromedriver'
 test_res = {}
 urls = []
 
@@ -21,7 +22,8 @@ def create_urls_list():
 
 
 def check_urls():
-    driver = webdriver.Chrome('/home/sanaev-va/chromedriver')  # указал где брать гугл хром драйвер
+
+    driver = webdriver.Chrome(cd_dir)# указал где брать гугл хром драйвер
     driver.implicitly_wait(10)# неявное ожидание драйвера
     wait = WebDriverWait(driver, 10)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
     driver.get(url)
@@ -36,7 +38,7 @@ def check_urls():
     try:
         output_element = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[1]/div')))#ждем, пока элемент прогрузится
         output_text = output_element.text.split('\n')  # парсим из него текст
-        print(f'{url} - {output_text}')  # выводим то что собрал
+        print(f'{url} - {output_text}')  # выводим результат
         test_res[url] = output_text  # записываем его в общий список ответов
     except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
         print(f'{url} - не удалось спарсить элемент gwt-Label(таймаут ожидания)')
@@ -47,10 +49,12 @@ def check_urls():
 if __name__ == "__main__":
     try:
         create_urls_list()
-        for url in urls:#запуск перебора всех составленных ссылок
+        for url in urls:#запуск первичного теста перебором всех составленных ссылок
             check_urls()
-        print('Результаты теста: \n')
-        for key, value in test_res.items():
-            print(key, value)
+#        print('Результаты теста: \n')
+#        for key, value in test_res.items():
+#            print(key, value)
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
+
+
