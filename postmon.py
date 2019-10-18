@@ -57,7 +57,7 @@ def check_urls():
 
 #def save_to_bd():
 #    f= open()
-
+#
 
 
 if __name__ == "__main__":
