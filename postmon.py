@@ -7,9 +7,18 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
+
 cd_dir = os.getcwd() + os.sep + 'chromedriver'
 urls = []#список сгенерированных ссылок
-test_res = {}#результат общего прогона
+db = 'first_test_res.data'
+
+try:#подгружаем переменную first_test_res
+    f = open(db, 'rb')
+    first_test_res = pickle.load(f)
+    f.close()
+except EOFError:#если файл с данными пустой, то создаем новый словарь
+    first_test_res = {}
+    print('Хранилище first_test_res пустоеб создаю новое...')
 
 
 def create_urls_list():
@@ -37,34 +46,44 @@ def check_urls():
                 driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
             except Exception:#если лого нет, то страница не прогрузилась
                 print(f'{url} - не удалось загрузить страницу')
-                test_res[url] = 'не удалось загрузить страницу'
+                first_test_res[url] = 'не удалось загрузить страницу'
+                driver.close()
                 continue
             print(f'{url} - услуга по ссылке не выведена')#если лого есть, значит услуга не выведена
-            test_res[url] = 'услуга по ссылке не выведена'  #и записываем его в общий список результатов
+            first_test_res[url] = 'услуга по ссылке не выведена'  #и записываем его в общий список результатов
             driver.close()
             continue#все записал - прервал итерацию, перешел к следующей
-
         try:
             output_element = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[1]/div')))#ждем, пока элемент прогрузится
             output_text = output_element.text.split('\n')  # парсим из него текст
             print(f'{url} - {output_text}')  # выводим результат
-            test_res[url] = output_text  # записываем его в общий список ответов
+            first_test_res[url] = output_text  # записываем его в общий список ответов
         except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
             print(f'{url} - не сработала валидация')
-            test_res[url] = 'не сработала валидация'  #и записываем его в общий список результатов
+            first_test_res[url] = 'не сработала валидация'  #и записываем его в общий список результатов
         driver.close()
 
 
-#def save_to_bd():
-#    f= open()
-#
+def update_bd():
+    print('записываю данные в хранилище...', end='')
+    f = open(db, 'wb')
+    pickle.dump(first_test_res, f)
+    f.close()
+    print('...ok\n')
+
+
+def open_bd():
+    print('Загружаю данные из first_test_res.data...', end='')
+    f = open(db, 'rb')
+    first_test_res = pickle.load(f)
+    f.close()
+    print('ok')
 
 
 if __name__ == "__main__":
     try:
         create_urls_list()
         check_urls()
+        update_bd()
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
-
-
