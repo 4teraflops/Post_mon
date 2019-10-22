@@ -1,5 +1,5 @@
 import os
-import time
+import pickle
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
@@ -7,14 +7,25 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
-cd_dir = os.getcwd() + os.sep + 'chromedriver'
+
+cd_dir_path = os.getcwd() + os.sep + 'chromedriver'#Chrome Driver directory
+db4replay_path = os.getcwd() + os.sep + 'res' + os.sep + 'db4replay.data'
 urls = []#список сгенерированных ссылок
-test_res = {}#результат общего прогона
+db_first = 'first_db.data'
+first_test_res = {}#результат первого тестового прогона
+res_with_valid = {}#услуги без валидации
+db_with_valid_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_with_valid.data'
+res_4man_check = {}#неопознанные ошбки
+db_4man_check_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_4man_check.data'
+res_bad_url = {}#услуги, которые не открылись по ссылкам
+db_bad_url_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_bad_url.data'
+res_ok = {}#услуги, по которым пройдена валидация
+db_ok = os.getcwd() + os.sep + 'res' + os.sep + 'db_ok.data'
 
 
 def create_urls_list():
     print("Составляю список ссылок для парсинга...", end="")
-    with open('cods.txt', 'rU') as f:#читаем содержимое
+    with open('cods1.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
         url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
@@ -24,7 +35,7 @@ def create_urls_list():
 
 def check_urls():
     for url in urls:#запуск теста перебором всего списка ссылок
-        driver = webdriver.Chrome(cd_dir)# указал где брать гугл хром драйвер
+        driver = webdriver.Chrome(cd_dir_path)# указал где брать гугл хром драйвер
         driver.implicitly_wait(5)# неявное ожидание драйвера
         wait = WebDriverWait(driver, 5)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
         driver.get(url)
@@ -33,38 +44,85 @@ def check_urls():
             input_ls.send_keys('9659659659')  # ввел несуществующий л/с
             input_ls.send_keys(Keys.TAB)  # переключился на следующее поле
         except TimeoutException:#если не удалось найти форму, генерим исключение и записываем его в общий результат
-#           logo = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="toMainPage"]/img"]')))#после открытия url смотрим есть ли кнопка "оплатить". Если нет - генерим исключение о том, что страница не прогрузилась
-#           logo_text = logo.text.split
             try:#ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
                 driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
             except Exception:#если лого нет, то страница не прогрузилась
                 print(f'{url} - не удалось загрузить страницу')
-                test_res[url] = 'не удалось загрузить страницу'
+                first_test_res[url] = 'не удалось загрузить страницу'
+                driver.close()
                 continue
-            print(f'{url} - услуга по ссылке не выведена')#если лого есть, значит услуга не выведена
-            test_res[url] = 'услуга по ссылке не выведена'  #и записываем его в общий список результатов
+            print(f'{url} - услуга по ссылке не найдена')#если лого есть, значит услуга не выведена
+            first_test_res[url] = 'услуга по ссылке не найдена'  #и записываем его в общий список результатов
             driver.close()
             continue#все записал - прервал итерацию, перешел к следующей
-
         try:
             output_element = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[1]/div')))#ждем, пока элемент прогрузится
             output_text = output_element.text.split('\n')  # парсим из него текст
             print(f'{url} - {output_text}')  # выводим результат
-            test_res[url] = output_text  # записываем его в общий список ответов
+            first_test_res[url] = output_text  # записываем его в общий список ответов
         except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
-            print(f'{url} - не удалось спарсить элемент gwt-Label(таймаут ожидания)')
-            test_res[url] = 'не удалось спарсить элемент gwt-Label(таймаут ожидания)'  #и записываем его в общий список результатов
+            print(f'{url} - не сработала валидация')
+            first_test_res[url] = 'не сработала валидация'  #и записываем его в общий список результатов
         driver.close()
+    update_db(db_first, first_test_res)
+
+
+def update_db(dbname, dictname):
+    f = open(dbname, 'wb')
+    pickle.dump(dictname, f)
+    f.close()
+
+
+def open_db(dbname, d_name):
+    print(f'Загружаю данные из {dbname}...', end='')
+    try:#подгружаем словарь
+        f = open(dbname, 'rb')
+        d_name = pickle.load(f)
+        f.close()
+        return d_name
+    except EOFError:#если файл с данными пустой, то создаем новый словарь
+        dictname = {}
+        print(f'Хранилище {dictname} пустое, создаю новую переменную...')
+    print('ok')
+
+
+def route_answers():#функция структурирования данных из первого словаря
+    first_res = open_db(db_first, first_test_res)#подгружаем собранные данные из чека ссылок
+    a = 'не сработала валидация'#вариант ошибок 1
+    b = 'услуга по ссылке не найдена'#вариант ошибок 2
+    c = ['Неизвестный Номер договора (NUMBER) 965965', 'Неизвестный Позывной 96596', 'Неизвестный Номер 965965965', 'Неизвестный N_ДОГОВОР 9659659659', 'Неизвестный Номер услуги/Имя пользователя/Логин/Лицевой счет 9659659659', 'Неизвестный НОМЕР КАРТЫ 9659659', '21: Заказ не найден либо удален', 'Неизвестный НОМЕР ДОГОВОРА 9659', 'Неизвестный Номер 965965', 'Неизвестный Номер карты 9659659659', 'Неизвестный Номер 96596', 'Неизвестный Номер договора/телефона 9659659659', 'Неизвестный НОМЕР ДОГОВОРА 9659659659', 'Неизвестный N Договора 965965', 'Неизвестный Номер 96596596', 'Неизвестный Л/СЧЕТ 9659659', 'Неизвестный ЛИЦЕВОЙ СЧЕТ, 5 ЦИФР 96596', 'Неизвестный Номер счета 9659659659', 'Неизвестный Номер лицевого счета 965965', 'Неизвестный Номер аккаунта 965965', 'Неизвестный Номер договора 965965', 'Неизвестный Номер телефона 9659659659', 'Неизвестный ID Получателя 9659659659', 'Неизвестный ПОЗЫВНОЙ (С УЧЕТОМ КОДА ТАКСОПАРКА) 965965965', '99: Не удалось проверить позывной', 'Неизвестный Номер 9659659659', 'Неизвестный ПОЗЫВНОЙ 965965', 'Неизвестный ПОЗЫВНОЙ 965965965', 'Неизвестный ЛОГИН 96596', 'Неизвестный Позывной (с учетом кода таксопарка) 965965965', 'Неизвестный Лицевой счет 9659659659', 'Неизвестный ПОЗЫВНОЙ 9659659659', 'Неизвестный Номер фирмы#позывной 9659659659', 'Неизвестный Номер заказа 9659659659', 'Неизвестный Л/СЧЕТ 9659659659', '99: Автомобилю 965965965 не разрешено оплачивать услуги через данный терминал', 'Неизвестный ПОЗЫВНОЙ 96596', 'Неизвестный Мобильный номер 9659659659', 'Неизвестный ПОЗЫВНОЙ 9659', 'Неизвестный НОМЕР ДОГОВОРА 9659659', 'Неизвестный N_ДОГОВОРА 965965', 'Неизвестный ЛИЦЕВОЙ СЧЕТ 96596', 'Неизвестный ЛИЦЕВОЙ СЧЕТ 9659659', 'Неизвестный Номер л/счета 96596', 'Неизвестный Логин 9659659659', 'Неизвестный Л/СЧЕТ 96596', 'Ошибочный номер абонента: Provider online prepare failed!', 'Неизвестный НОМЕР ТЕЛЕФОНА 965965', 'Неизвестный Л/СЧЕТ 96596596', 'Неизвестный ДОГОВОР 96596596', 'Неизвестный ЛИЦЕВОЙ СЧЕТ 965965', 'Неизвестный LOGIN 9659659659', 'Неизвестный Л/СЧЕТ 965965', 'Неизвестный НОМЕР ДОГОВОРА 965965', 'Неизвестный Л/СЧЕТ 9659', 'Неизвестный Номер договора 9659659659', 'Неизвестный ЛИЦЕВОЙ СЧЕТ 96596596', 'Неизвестный ЛИЦЕВОЙ СЧЕТ 9659659659', 'Неизвестный НОМЕР ДОГОВОРА 96596']
+    for key, value in first_res.items():
+        if a == value:#если сработало условие
+            res_with_valid[key] = value#записываем ключ и значение в отдельный словарь и файл
+            update_db(db_with_valid_path, res_with_valid)
+        elif b == value:
+            res_bad_url[key] = value
+            update_db(db_bad_url_path, res_bad_url)
+        elif value in c:
+            res_ok[key] = 'ОК'#заменяем значение ключа на ОК
+            update_db(db_ok, res_ok)
+        else:#все, что не попало под условия записываем в неопознанные ошибки
+            res_4man_check[key] = value
+            update_db(db_4man_check_path, res_4man_check)
+
+    print(f'\n ИТОГО: \n Ссылки на услуги без валидации ({len(res_with_valid)}): \n')#выводим итоговый список. Ссылки без валидации
+    for key, value in res_with_valid.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, по которым услуга не открылась ({len(res_bad_url)}):\n')
+    for key, value in res_bad_url.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, которые прошли проверку ({len(res_ok)}):\n')
+    for key, value in res_ok.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки на услуги с неопознанными ошибками ({len(res_4man_check)}): \n')  # список c неопознанными ошибками
+    for key, value in res_4man_check.items():
+        print(key, ' - ', value)
 
 
 if __name__ == "__main__":
     try:
-        create_urls_list()
-        check_urls()
-#        print('Результаты теста: \n')
-#        for key, value in test_res.items():
-#            print(key, value)
+#        create_urls_list()
+#        check_urls()
+        route_answers()
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
-
-
