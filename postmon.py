@@ -8,17 +8,42 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 
-cd_dir = os.getcwd() + os.sep + 'chromedriver'
+cd_dir_path = os.getcwd() + os.sep + 'chromedriver'#Chrome Driver directory
+db4replay_path = os.getcwd() + os.sep + 'res' + os.sep + 'db4replay.data'
 urls = []#список сгенерированных ссылок
-db = 'first_test_res.data'
+db_first = 'first_db.data'
+first_test_res = {}#результат первого тестового прогона
 
-try:#подгружаем переменную first_test_res
-    f = open(db, 'rb')
-    first_test_res = pickle.load(f)
-    f.close()
-except EOFError:#если файл с данными пустой, то создаем новый словарь
-    first_test_res = {}
-    print('Хранилище first_test_res пустоеб создаю новое...')
+res_4man_check = {}#неопознанные ошбки
+db_4man_check_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_4man_check.data'
+
+res_with_valid = {}#услуги без валидации
+db_with_valid_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_with_valid.data'
+a = 'не сработала валидация'#вариант ошибок 1
+
+res_bad_url = {}#услуги, которые не открылись по ссылкам
+db_bad_url_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_bad_url.data'
+b = 'услуга по ссылке не найдена'#вариант ошибок 2
+
+res4_replay = {}
+res4_replay_path = os.getcwd() + os.sep + 'res' + os.sep + 'db4replay.data'
+c = 'не удалось загрузить страницу'#вариант ошибок 3
+
+res_with_format = {}
+db_with_format_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_with_format.data'
+word_with_format = {}
+word_with_format_path = os.getcwd() + os.sep + 'words' + os.sep + 'with_format.txt'
+
+word_ok_path = os.getcwd() + os.sep + 'words' + os.sep + 'ok.txt'
+word_ok = {}
+res_ok = {}#услуги, по которым пройдена валидация
+db_ok_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_ok.data'
+
+res_errors = {}
+db_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'db_errors.data'
+word_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'errors.txt'
+word_errors = {}
+
 
 
 def create_urls_list():
@@ -31,9 +56,15 @@ def create_urls_list():
     print(" Ок")
 
 
+def open_word(wordname, wordpath):#открыть словарь по принципу предыдущей функции
+    with open(wordpath, 'rU') as f:
+        wordname = f.read().split('\n')
+    return wordname
+
+
 def check_urls():
     for url in urls:#запуск теста перебором всего списка ссылок
-        driver = webdriver.Chrome(cd_dir)# указал где брать гугл хром драйвер
+        driver = webdriver.Chrome(cd_dir_path)# указал где брать гугл хром драйвер
         driver.implicitly_wait(5)# неявное ожидание драйвера
         wait = WebDriverWait(driver, 5)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
         driver.get(url)
@@ -55,35 +86,90 @@ def check_urls():
             continue#все записал - прервал итерацию, перешел к следующей
         try:
             output_element = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[1]/div')))#ждем, пока элемент прогрузится
-            output_text = output_element.text.split('\n')  # парсим из него текст
+            output_text = output_element.get_attribute('innerHTML')   # парсим из него текст
             print(f'{url} - {output_text}')  # выводим результат
             first_test_res[url] = output_text  # записываем его в общий список ответов
         except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
             print(f'{url} - не сработала валидация')
             first_test_res[url] = 'не сработала валидация'  #и записываем его в общий список результатов
         driver.close()
+    update_db(db_first, first_test_res)
 
 
-def update_bd():
-    print('записываю данные в хранилище...', end='')
-    f = open(db, 'wb')
-    pickle.dump(first_test_res, f)
+def update_db(dbname, dictname):
+    f = open(dbname, 'wb')
+    pickle.dump(dictname, f)
     f.close()
-    print('...ok\n')
 
 
-def open_bd():
-    print('Загружаю данные из first_test_res.data...', end='')
-    f = open(db, 'rb')
-    first_test_res = pickle.load(f)
-    f.close()
+def open_db(dbname, d_name):
+    print(f'Загружаю данные из {dbname}...', end='')
+    try:#подгружаем словарь
+        f = open(dbname, 'rb')
+        d_name = pickle.load(f)
+        f.close()
+        return d_name
+    except EOFError:#если файл с данными пустой, то создаем новый словарь
+        d_name = {}
+        print(f'Хранилище {d_name} пустое, создаю новую переменную...')
     print('ok')
+
+
+def route_answers():#функция структурирования данных из первого словаря
+    first_res = open_db(db_first, first_test_res)#подгружаем собранные данные из чека ссылок
+    word_ok_res = open_word(word_ok, word_ok_path)#подгружаем словарь с норм результатами проверки
+    word_format = open_word(word_with_format, word_with_format_path)#подгружаем словарь с ошибками по формату
+    word_errors_res = open_word(word_errors, word_errors_path)
+    for key, value in first_res.items():
+        if a == value:#если сработало условие
+            res_with_valid[key] = value#записываем ключ и значение в отдельный словарь и файл
+            update_db(db_with_valid_path, res_with_valid)
+        elif b == value:
+            res_bad_url[key] = value
+            update_db(db_bad_url_path, res_bad_url)
+        elif value in word_ok_res:
+            res_ok[key] = 'ОК'#заменяем значение ключа на ОК
+            update_db(db_ok_path, res_ok)
+        elif value == c:
+            res4_replay[key] = value
+            update_db(db4replay_path, res4_replay)
+        elif value in word_errors_res:
+            res_errors[key] = value
+            update_db(db_with_format_path, res_errors)
+        elif value in word_format:
+            res_with_format[key] = value
+            update_db(db_with_format_path, res_with_format)
+        else:#все, что не попало под условия записываем в неопознанные ошибки
+            res_4man_check[key] = value
+            update_db(db_4man_check_path, res_4man_check)
+
+    print(f'\n \n ИТОГО: \n Ссылки на услуги без валидации ({len(res_with_valid)}): \n')#выводим итоговый список. Ссылки без валидации
+    for key, value in res_with_valid.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, по которым услуга не открылась ({len(res_bad_url)}):\n')
+    for key, value in res_bad_url.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, которые прошли проверку ({len(res_ok)}):\n')
+    for key, value in res_ok.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, которые не прогрузились и отложены на следующий тест ({len(res4_replay)}):\n')
+    for key, value in res4_replay.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки, по которым скрипт не попал в формат ({len(res_with_format)}штук):\n')
+    for key, value in res_with_format.items():
+        print(key, ' - ', value)
+    print(f'Услуги с техническими ошибками {len(res_errors)}штук:')
+    for key, value in res_errors.items():
+        print(key, ' - ', value)
+    print(f'\n Ссылки на услуги с неопознанными ошибками ({len(res_4man_check)}): \n')  # список c неопознанными ошибками
+    for key, value in res_4man_check.items():
+        print(key, ' - ', value)
 
 
 if __name__ == "__main__":
     try:
         create_urls_list()
         check_urls()
-        update_bd()
+        route_answers()
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
