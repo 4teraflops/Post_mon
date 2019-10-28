@@ -1,5 +1,6 @@
 import os
 import pickle
+import timeit
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
@@ -29,7 +30,7 @@ res4_replay = {}
 res4_replay_path = os.getcwd() + os.sep + 'res' + os.sep + 'db4replay.data'
 c = 'не удалось загрузить страницу'#вариант ошибок 3
 
-res_with_format = {}
+res_with_format = {}#услуги с другим форматом ввода данных
 db_with_format_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_with_format.data'
 word_with_format = {}
 word_with_format_path = os.getcwd() + os.sep + 'words' + os.sep + 'with_format.txt'
@@ -39,16 +40,17 @@ word_ok = {}
 res_ok = {}#услуги, по которым пройдена валидация
 db_ok_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_ok.data'
 
-res_errors = {}
+res_errors = {}#переменные для маппинга технических ошибок
 db_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'db_errors.data'
 word_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'errors.txt'
 word_errors = {}
 
+t = timeit.default_timer()#переменная для замера времени выполнения скрипта
 
 
 def create_urls_list():
     print("Составляю список ссылок для парсинга...", end="")
-    with open('cods.txt', 'rU') as f:#читаем содержимое
+    with open('cods1.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
         url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
@@ -76,12 +78,12 @@ def check_urls():
             try:#ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
                 driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
             except Exception:#если лого нет, то страница не прогрузилась
-                print(f'{url} - не удалось загрузить страницу')
-                first_test_res[url] = 'не удалось загрузить страницу'
+                print(f'{url} - {c}')
+                first_test_res[url] = c
                 driver.close()
                 continue
-            print(f'{url} - услуга по ссылке не найдена')#если лого есть, значит услуга не выведена
-            first_test_res[url] = 'услуга по ссылке не найдена'  #и записываем его в общий список результатов
+            print(f'{url} - {b}')#если лого есть, значит услуга не выведена
+            first_test_res[url] = b  #и записываем его в общий список результатов
             driver.close()
             continue#все записал - прервал итерацию, перешел к следующей
         try:
@@ -90,8 +92,8 @@ def check_urls():
             print(f'{url} - {output_text}')  # выводим результат
             first_test_res[url] = output_text  # записываем его в общий список ответов
         except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
-            print(f'{url} - не сработала валидация')
-            first_test_res[url] = 'не сработала валидация'  #и записываем его в общий список результатов
+            print(f'{url} - {a}')
+            first_test_res[url] = a#и записываем его в общий список результатов
         driver.close()
     update_db(db_first, first_test_res)
 
@@ -155,7 +157,7 @@ def route_answers():#функция структурирования данны�
     print(f'\n Ссылки, которые не прогрузились и отложены на следующий тест ({len(res4_replay)}):\n')
     for key, value in res4_replay.items():
         print(key, ' - ', value)
-    print(f'\n Ссылки, по которым скрипт не попал в формат ({len(res_with_format)}штук):\n')
+    print(f'\n Ссылки, по которым скрипт не попал в формат ({len(res_with_format)}):\n')
     for key, value in res_with_format.items():
         print(key, ' - ', value)
     print(f'\nУслуги с техническими ошибками {len(res_errors)}\n:')
@@ -167,9 +169,11 @@ def route_answers():#функция структурирования данны�
 
 
 if __name__ == "__main__":
+
     try:
         create_urls_list()
         check_urls()
         route_answers()
+        print(f'Время выполнения скрипта (сек) -  {timeit.default_timer()-t}')
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
