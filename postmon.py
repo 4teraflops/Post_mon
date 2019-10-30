@@ -1,4 +1,8 @@
 import os
+import sys
+import time
+import itertools
+import threading
 import pickle
 import timeit
 from selenium import webdriver
@@ -50,7 +54,7 @@ t = timeit.default_timer()#переменная для замера времен
 
 def create_urls_list():
     print("Составляю список ссылок для парсинга...", end="")
-    with open('cods.txt', 'rU') as f:#читаем содержимое
+    with open('cods1.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
         url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
@@ -78,21 +82,21 @@ def check_urls():
             try:#ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
                 driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
             except Exception:#если лого нет, значит страница не прогрузилась
-                print(f'{url} - {c}')
+                #print(f'{url} - {c}')
                 first_test_res[url] = c
                 driver.close()
                 continue
-            print(f'{url} - {b}')#если лого есть, значит услуга не выведена
+            #print(f'{url} - {b}')#если лого есть, значит услуга не выведена
             first_test_res[url] = b  #и записываем его в общий список результатов
             driver.close()
             continue#все записал - прервал итерацию, перешел к следующей
         try:
             output_element = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[1]/div')))#ждем, пока элемент прогрузится
             output_text = output_element.get_attribute('innerHTML')   # парсим из него текст
-            print(f'{url} - {output_text}')  # выводим результат
+            #print(f'{url} - {output_text}')  # выводим результат
             first_test_res[url] = output_text  # записываем его в общий список ответов
         except TimeoutException:#если по таймауту собрать не удалось, выводим исключение
-            print(f'{url} - {a}')
+            #print(f'{url} - {a}')
             first_test_res[url] = a#и записываем его в общий список результатов
         driver.close()
     update_db(db_first, first_test_res)
@@ -115,6 +119,16 @@ def open_db(dbname, d_name):
         d_name = {}
         print(f'Хранилище {d_name} пустое, создаю новую переменную...')
     print('ok')
+
+
+def animate():#анимация загрузки
+    for c in itertools.cycle(['|', '/', '-', '\\']):
+        if done:
+            break
+        sys.stdout.write('\rloading... This take same hours... ' + c)
+        sys.stdout.flush()
+        time.sleep(0.1)
+    sys.stdout.write('\rDone!     ')
 
 
 def route_answers():#функция структурирования данных из первого словаря
@@ -145,7 +159,7 @@ def route_answers():#функция структурирования данны�
             res_4man_check[key] = value
             update_db(db_4man_check_path, res_4man_check)
 
-    print(f'\n \n ИТОГО: \n Ссылки на услуги без валидации ({len(res_with_valid)}): \n')#выводим итоговый список. Ссылки без валидации
+    print(f'\n \n Ссылки на услуги без валидации ({len(res_with_valid)}): \n')#выводим итоговый список. Ссылки без валидации
     for key, value in res_with_valid.items():
         print(key, ' - ', value)
     print(f'\n Ссылки, по которым услуга не открылась ({len(res_bad_url)}):\n')
@@ -160,20 +174,34 @@ def route_answers():#функция структурирования данны�
     print(f'\n Ссылки, по которым скрипт не попал в формат ({len(res_with_format)}):\n')
     for key, value in res_with_format.items():
         print(key, ' - ', value)
-    print(f'\nУслуги с техническими ошибками {len(res_errors)}\n:')
+    print(f'\nУслуги с техническими ошибками {len(res_errors)}:\n')
     for key, value in res_errors.items():
         print(key, ' - ', value)
     print(f'\n Ссылки на услуги с неопознанными ошибками ({len(res_4man_check)}): \n')  # список c неопознанными ошибками
     for key, value in res_4man_check.items():
         print(key, ' - ', value)
 
+    print('\nИтого: \n')
+    print(f'Услуги без валидации - {len(res_with_valid)}')
+    print(f'Услуга не открылась - {len(res_bad_url)}')
+    print(f'Услуги, которые OK - {len(res_ok)}')
+    print(f'Сайт не прогрузил страницу - {len(res4_replay)}')
+    print(f'Не попал в формат - {len(res_with_format)}')
+    print(f'Технические ошибки на услуге - {len(res_errors)}')
+    print(f'Неопознанный ответ - {len(res_4man_check)}')
+
 
 if __name__ == "__main__":
 
     try:
         create_urls_list()
+        done = False#для анимации
+        anim = threading.Thread(target=animate)#запуск анимации
+        anim.start()#start анимации
         check_urls()
+        done = True#стоп анимации
         route_answers()
         print(f'Время выполнения скрипта (сек) -  {timeit.default_timer()-t}')
     except KeyboardInterrupt:
         print('Вы завершили работу программы. Закрываюсь.')
+        done = True
