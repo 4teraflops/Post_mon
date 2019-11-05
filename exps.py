@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import itertools
 from datetime import datetime
 import time
@@ -14,6 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('all.log')#для логов
 startTime = datetime.now()#для замера времени исполнения скрипта
 
 cd_dir_path = os.getcwd() + os.sep + 'chromedriver'#Chrome Driver directory
@@ -80,7 +83,7 @@ def open_word(wordname, wordpath):#открыть словарь по принц
 def check_urls(urls_list):
     for url in urls_list:#запуск теста перебором всего списка ссылок
         opts = Options()#создаем объект опций хрома
-        opts.add_argument()#подставляем рандомный IP
+        opts.add_argument('X-Real-IP=localhost')#подставляем заголовок с локальным ip (против капчи)
         driver = webdriver.Chrome(cd_dir_path, chrome_options=opts)# указал где брать гугл хром драйвер
         driver.implicitly_wait(3)# неявное ожидание драйвера
         wait = WebDriverWait(driver, 3)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
@@ -133,10 +136,10 @@ def open_db(dbname, d_name):
 
 
 def animate():#анимация загрузки
-    for c in itertools.cycle(['|', '/', '-', '\\']):
+    for cc in itertools.cycle(['|', '/', '-', '\\']):
         if done:
             break
-        sys.stdout.write('\rloading... This make take same hours... ' + c)
+        sys.stdout.write('\rloading... This make take some time... ' + cc)
         sys.stdout.flush()
         time.sleep(0.1)
     sys.stdout.write('\rDone!     ')
@@ -220,7 +223,7 @@ if __name__ == "__main__":
         thread6 = Thread(target=check_urls, args=(urls6, ))
         done = False#для анимации
         anim = threading.Thread(target=animate)#запуск анимации
-        anim.start()#start анимации
+#        anim.start()#start анимации
         thread1.start()
         thread2.start()
         thread3.start()
@@ -240,3 +243,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print('\nВы завершили работу программы. Закрываюсь.')
         done = True
+    except ConnectionRefusedError:
+        print('Подключение в потоке было разорвано')
