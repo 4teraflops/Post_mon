@@ -54,7 +54,7 @@ t = timeit.default_timer()#переменная для замера времен
 
 def create_urls_list():
     print("Составляю список ссылок для парсинга...", end="")
-    with open('cods1.txt', 'rU') as f:#читаем содержимое
+    with open('cods.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
         url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
@@ -109,7 +109,7 @@ def update_db(dbname, dictname):
 
 
 def open_db(dbname, d_name):
-    print(f'Загружаю данные из {dbname}...', end='')
+    print(f'\nЗагружаю данные из {dbname}...', end='')
     try:#подгружаем словарь
         f = open(dbname, 'rb')
         d_name = pickle.load(f)

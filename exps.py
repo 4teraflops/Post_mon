@@ -1,21 +1,31 @@
 import os
 import sys
-import time
 import itertools
-import threading
+from datetime import datetime
+import time
 import pickle
-import timeit
+import threading
+from threading import Thread
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
+startTime = datetime.now()#для замера времени исполнения скрипта
 
 cd_dir_path = os.getcwd() + os.sep + 'chromedriver'#Chrome Driver directory
 db4replay_path = os.getcwd() + os.sep + 'res' + os.sep + 'db4replay.data'
-urls = []#список сгенерированных ссылок
+urls = []#общий список сгенерированных ссылок
+urls1 = [] # разбиваем список на подсписки для отдельных потоков
+urls2 = []
+urls3 = []
+urls4 = []
+urls5 = []
+urls6 = []
+
 db_first = 'first_db.data'
 first_test_res = {}#результат первого тестового прогона
 
@@ -49,16 +59,15 @@ db_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'db_errors.data'
 word_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'errors.txt'
 word_errors = {}
 
-t = timeit.default_timer()#переменная для замера времени выполнения скрипта
-
 
 def create_urls_list():
-    print("Составляю список ссылок для парсинга...", end="")
-    with open('cods1.txt', 'rU') as f:#читаем содержимое
+    print("Составляю список ссылок для итераций...", end="")
+    with open('cods.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
         url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
         urls.append(url)#запись в общий список ссылок
+
     print(" Ок")
 
 
@@ -68,11 +77,13 @@ def open_word(wordname, wordpath):#открыть словарь по принц
     return wordname
 
 
-def check_urls():
-    for url in urls:#запуск теста перебором всего списка ссылок
-        driver = webdriver.Chrome(cd_dir_path)# указал где брать гугл хром драйвер
-        driver.implicitly_wait(5)# неявное ожидание драйвера
-        wait = WebDriverWait(driver, 5)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
+def check_urls(urls_list):
+    for url in urls_list:#запуск теста перебором всего списка ссылок
+        opts = Options()#создаем объект опций хрома
+        opts.add_argument()#подставляем рандомный IP
+        driver = webdriver.Chrome(cd_dir_path, chrome_options=opts)# указал где брать гугл хром драйвер
+        driver.implicitly_wait(3)# неявное ожидание драйвера
+        wait = WebDriverWait(driver, 3)  # Задал переменную, чтоб настроить явное ожидание элемента (сек)
         driver.get(url)
         try:
             input_ls = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="payMasksBlock"]/div/div[2]/input')))#нашел форму по XPATH
@@ -82,7 +93,7 @@ def check_urls():
             try:#ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
                 driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
             except Exception:#если лого нет, значит страница не прогрузилась
-                #print(f'{url} - {c}')
+                print(f'{url} - {c}')
                 first_test_res[url] = c
                 driver.close()
                 continue
@@ -125,7 +136,7 @@ def animate():#анимация загрузки
     for c in itertools.cycle(['|', '/', '-', '\\']):
         if done:
             break
-        sys.stdout.write('\rloading... This take same hours... ' + c)
+        sys.stdout.write('\rloading... This make take same hours... ' + c)
         sys.stdout.flush()
         time.sleep(0.1)
     sys.stdout.write('\rDone!     ')
@@ -183,7 +194,7 @@ def route_answers():#функция структурирования данны�
 
     print('\nИтого: \n')
     print(f'Услуги без валидации - {len(res_with_valid)}')
-    print(f'Услуга не открылась - {len(res_bad_url)}')
+    print(f'Услуга не выведена - {len(res_bad_url)}')
     print(f'Услуги, которые OK - {len(res_ok)}')
     print(f'Сайт не прогрузил страницу - {len(res4_replay)}')
     print(f'Не попал в формат - {len(res_with_format)}')
@@ -195,13 +206,37 @@ if __name__ == "__main__":
 
     try:
         create_urls_list()
+        urls1 = urls[0:500]  # разбиваем список на подсписки для потоков
+        urls2 = urls[500:1000]
+        urls3 = urls[1000:1500]
+        urls4 = urls[1500:2000]
+        urls5 = urls[2000:2500]
+        urls6 = urls[2500:3000]
+        thread1 = Thread(target=check_urls, args=(urls1,))
+        thread2 = Thread(target=check_urls, args=(urls2, ))
+        thread3 = Thread(target=check_urls, args=(urls3, ))
+        thread4 = Thread(target=check_urls, args=(urls4, ))
+        thread5 = Thread(target=check_urls, args=(urls5, ))
+        thread6 = Thread(target=check_urls, args=(urls6, ))
         done = False#для анимации
         anim = threading.Thread(target=animate)#запуск анимации
         anim.start()#start анимации
-        check_urls()
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
         done = True#стоп анимации
         route_answers()
-        print(f'Время выполнения скрипта (сек) -  {timeit.default_timer()-t}')
+        endtime = datetime.now()#для замера времени исполнения скрипта
+        print(f'Время выполнения:  {endtime - startTime}')
     except KeyboardInterrupt:
-        print('Вы завершили работу программы. Закрываюсь.')
+        print('\nВы завершили работу программы. Закрываюсь.')
         done = True
