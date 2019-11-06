@@ -1,6 +1,5 @@
 import os
 import sys
-import logging
 import itertools
 from datetime import datetime
 import time
@@ -15,8 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('all.log')#для логов
+
 startTime = datetime.now()#для замера времени исполнения скрипта
 
 cd_dir_path = os.getcwd() + os.sep + 'chromedriver'#Chrome Driver directory
@@ -68,9 +66,8 @@ def create_urls_list():
     with open('cods.txt', 'rU') as f:#читаем содержимое
         service_cods = f.read().split('\n')#читаем пропуская перенос строки
     for s in service_cods:#теперь составляем список ссылок, которые будем тестить
-        url = ('https://ckassa.ru/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
+        url = ('http://10.10.137.23:8080/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(s)#превращаем код услуги в ссылку для теста
         urls.append(url)#запись в общий список ссылок
-
     print(" Ок")
 
 
@@ -222,8 +219,8 @@ if __name__ == "__main__":
         thread5 = Thread(target=check_urls, args=(urls5, ))
         thread6 = Thread(target=check_urls, args=(urls6, ))
         done = False#для анимации
-        anim = threading.Thread(target=animate)#запуск анимации
-#        anim.start()#start анимации
+        anim = threading.Thread(target=animate)#для запуска анимации
+        anim.start()#start анимации
         thread1.start()
         thread2.start()
         thread3.start()
