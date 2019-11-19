@@ -1,6 +1,7 @@
 import os
 import sys
 import itertools
+import requests
 from datetime import datetime
 import time
 import pickle
@@ -41,6 +42,7 @@ res_with_format = {}  # услуги с другим форматом ввода
 db_with_format_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_with_format.data'
 word_with_format = {}
 word_with_format_path = os.getcwd() + os.sep + 'words' + os.sep + 'with_format.txt'
+d = 'не попал в формат'
 
 word_ok_path = os.getcwd() + os.sep + 'words' + os.sep + 'ok.txt'
 word_ok = {}
@@ -55,13 +57,14 @@ word_errors = {}
 
 def create_urls_list():
     print("Составляю список ссылок для итераций...", end="")
-    with open('cods.txt', 'rU') as f:  # читаем содержимое
+    with open('cods1.txt', 'rU') as f:  # читаем содержимое
         service_cods = f.read().split('\n')  # читаем пропуская перенос строки
     for s in service_cods:  # теперь составляем список ссылок, которые будем тестить
         url = ('http://10.10.137.23:8080/payment/#!search_provider/pt_search/' + '{}' + '/pay').format(
             s)  # превращаем код услуги в ссылку для теста
         urls.append(url)  # запись в общий список ссылок
     print(" Ок")
+
 
 
 def open_word(wordname, wordpath):  # открыть словарь по принципу предыдущей функции
@@ -73,7 +76,7 @@ def open_word(wordname, wordpath):  # открыть словарь по при�
 def check_urls(urls_list):
     for url in urls_list:  # запуск теста перебором всего списка ссылок
         chrome_options = Options()  # задаем параметры запуска драйвера, чтоб не крашился (когда работает во много потоков)
-        chrome_options.add_argument('--headless')  # скрывать окна хрома
+#        chrome_options.add_argument('--headless')  # скрывать окна хрома
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(cd_dir_path, chrome_options=chrome_options)  # указал где брать гугл хром драйвер
@@ -86,15 +89,20 @@ def check_urls(urls_list):
             input_ls.send_keys('9659659659')  # ввел несуществующий л/с
             input_ls.send_keys(Keys.TAB)  # переключился на следующее поле
         except TimeoutException:  # если не удалось найти форму, генерим исключение и записываем его в общий результат
-            try:  # ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
-                driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')
-            except Exception:  # если лого нет, значит страница не прогрузилась
-                print(f'{url} - {c}')
-                first_test_res[url] = c
-                driver.close()
-                continue
-            print(f'{url} - {b}')  # если лого есть, значит услуга не выведена
-            first_test_res[url] = b  # и записываем его в общий список результатов
+            try:  # ищем поле ввода суммы. Если найдено - значит не попал в формат (т.к. нет поля ввода ЛС)
+                driver.find_element_by_xpath('//*[@id="paySum"]')
+                print(f'{url} - {d}')
+                first_test_res[url] = d  # запись в общий список результатов
+            except Exception:  # если поля ввода суммы нет, то ищем лого сайта
+                try:
+                    driver.find_element_by_xpath('/html/body/div[2]/div[1]/div/table/tbody/tr/td[1]/div/img')# ищем лого сайта (чтоб отличить загруженнуб страницу без услуги от незагруженной страницы)
+                    print(f'{url} - {b}')  # если лого есть, значит услуга не выведена
+                    first_test_res[url] = b  # и записываем его в общий список результатов
+                except Exception:  # если лого нет, значит страница не прогрузилась
+                    print(f'{url} - {c}')
+                    first_test_res[url] = c
+                    driver.close()
+                    continue
             driver.close()
             continue  # все записал - прервал итерацию, перешел к следующей
         try:
@@ -160,7 +168,7 @@ def route_answers():  # функция структурирования данн
         elif value in word_errors_res:
             res_errors[key] = value
             update_db(db_with_format_path, res_errors)
-        elif value in word_format:
+        elif value in word_format or value == d:
             res_with_format[key] = value
             update_db(db_with_format_path, res_with_format)
         else:  # все, что не попало под условия записываем в неопознанные ошибки
@@ -183,7 +191,7 @@ def route_answers():  # функция структурирования данн
     print(f'\n Ссылки, по которым скрипт не попал в формат ({len(res_with_format)}):\n')
     for key, value in res_with_format.items():
         print(key, ' - ', value)
-    print(f'\nУслуги с техническими ошибками {len(res_errors)}:\n')
+    print(f'\n Услуги с техническими ошибками {len(res_errors)}:\n')
     for key, value in res_errors.items():
         print(key, ' - ', value)
     print(
@@ -205,6 +213,8 @@ if __name__ == "__main__":
 
     try:
         create_urls_list()
+        print('Зачищаю список от дублей...')
+        urls = list(set(urls))  # удалил дубли селектом
         urls1 = urls[0:500]  # разбиваем список на подсписки для потоков
         urls2 = urls[500:1000]
         urls3 = urls[1000:1500]
