@@ -29,26 +29,29 @@ word_errors = {}
 res_bad_url = {}  # услуги, которые не открылись по ссылкам
 db_bad_url_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_bad_url.data'
 
+res_4man_check = {}  # неопознанные ошбки
+db_4man_check_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_4man_check.data'
+
 
 def create_urls_list():
     print("Составляю список ссылок для итераций...", end="")
     with open('cods1.txt', 'rU') as f:  # читаем содержимое со всеми кодами услуг
-        service_cods = f.read().split('\n')  # читаем пропуская перенос строки
-    with open('stop_list_cods.txt', 'rU') as f:  # читаем содержимое файла со стоп листом (те услуги, которые не надо чекать)
+        service_cods = f.read().split('\n')  # читаем, считая перенос строки за разделитель
+    with open('stop_list_cods.txt','rU') as f:  # читаем содержимое файла со стоп листом (те услуги, которые не надо чекать)
         stop_list_cods = f.read().split('\n')  # записываем все ненужные коды в переменную
     for s in service_cods:  # теперь составляем список ссылок, которые будем тестить
         if s not in stop_list_cods:
             # превращаем код услуги в ссылку для теста (отсекая коды из стоп листа)
             url = (
-                        'https://uat.autopays.ru/api-shop/rs/shop/test?sec-key=96abc9ad-24dc-4125-9fc4-a8072f7b83c3&service-code=' + '{}').format(
+                    'https://uat.autopays.ru/api-shop/rs/shop/test?sec-key=96abc9ad-24dc-4125-9fc4-a8072f7b83c3&service-code=' + '{}').format(
                 s)
             urls.append(url)  # запись в общий список ссылок
     print(" Ок")
     # если надо будет чекнуть сколько кодов услуг отсечено, выводим метрики и смотрим.
-#    print(f'Service cods - {len(service_cods)}')
-#    print(f'Stop list - {len(stop_list_cods)}')
-#    print(f'Urls - {len(urls)}')
-#    print(f'Отсечено - {(len(service_cods) - len(urls))}')
+    # print(f'Service cods - {len(service_cods)}')
+    # print(f'Stop list - {len(stop_list_cods)}')
+    # print(f'Urls - {len(urls)}')
+    # print(f'Отсечено - {(len(service_cods) - len(urls))}')
 
 
 def update_db(dbname, dictname):
@@ -79,17 +82,24 @@ def open_word(wordname, wordpath):  # открыть словарь по при�
 def open_urls():
     for url in urls:
         r = s.get(url)
+        # парсим текст, заменяя начало (оно у всех ошибок одинаковое, заменяем его на None)
+        error_text = r.text.replace('--ERROR--\ncom.techinfocom.bisys.pay.utils.shared.exception.', '')
         # убираем из строки лишнее, оставляем только код услуги
         code = url.replace(
             'https://uat.autopays.ru/api-shop/rs/shop/test?sec-key=96abc9ad-24dc-4125-9fc4-a8072f7b83c3&service-code=',
             '')
-        first_test_res[code] = [r.status_code, r.text]
+        first_test_res[code] = [r.status_code, error_text]
         print(first_test_res[code])
         update_db(db_first, first_test_res)
 
 
+def p_res(item_name):  # печать словаря
+    for key, value in item_name.items():
+        print(f'{key} - {value}')
+
+
 def route_answers():
-    first_res = open_db(db_first, first_test_res)  # подгружаем собранные данные из чека ссылок
+    first_res = open_db(db_first, first_test_res)  # подгружаем собранные данные из проверки ссылок
     word_ok_res = open_word(word_ok, word_ok_path)  # подгружаем словарь с норм результатами проверки
     word_format = open_word(word_with_format, word_with_format_path)  # подгружаем словарь с ошибками по формату
     word_errors_res = open_word(word_errors, word_errors_path)
@@ -98,7 +108,23 @@ def route_answers():
             res_ok[key] = 'ok'
         elif value[0] == 400 and value[1] == 'provider == null':
             res_bad_url[key] = 'услуга не найдена'
+        elif value[1] in word_errors_res:
+            res_errors[key] = value[1]
+        else:
+            res_4man_check[key] = value[1]
 
+    # выводим на печать услуги, прошедшие проверку
+    print('\n \n Услуги ОК: \n')
+    p_res(res_ok)
+    # выводим на печать услуги, которые не найдены
+    print('\nУслуги, которые не были найдены: \n')
+    p_res(res_bad_url)
+    # выводим на печать технические ошибки
+    print('\nУслуги с техническими ошибками: \n')
+    p_res(res_errors)
+    # выводим на печать прочие ошибки
+    print('\n Неопознанные ошибки: \n')
+    p_res(res_4man_check)
 
 
 if __name__ == '__main__':
