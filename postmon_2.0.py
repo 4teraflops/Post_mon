@@ -104,34 +104,48 @@ def route_answers():
     word_format = open_word(word_with_format, word_with_format_path)  # подгружаем словарь с ошибками по формату
     word_errors_res = open_word(word_errors, word_errors_path)
     for key, value in first_res.items():
-        if value[0] == 200:
+        if value[0] == 200 or value[1] in word_ok_res:
             res_ok[key] = 'ok'
         elif value[0] == 400 and value[1] == 'provider == null':
             res_bad_url[key] = 'услуга не найдена'
         elif value[1] in word_errors_res:
             res_errors[key] = value[1]
+        elif value[1] in word_format:
+            res_with_format[key] = value[1]
         else:
             res_4man_check[key] = value[1]
+    update_db(db_ok_path, res_ok)
+    update_db(db_bad_url_path, res_bad_url)
+    update_db(db_errors_path, res_errors)
+    update_db(db_with_format_path, res_with_format)
 
     # выводим на печать услуги, прошедшие проверку
-    print('\n \n Услуги ОК: \n')
+    print(f'\n \n Услуги ОК ({len(res_ok)}): \n')
     p_res(res_ok)
     # выводим на печать услуги, которые не найдены
-    print('\nУслуги, которые не были найдены: \n')
+    print(f'\nУслуги, которые не были найдены ({len(res_bad_url)}): \n')
     p_res(res_bad_url)
     # выводим на печать технические ошибки
-    print('\nУслуги с техническими ошибками: \n')
+    print(f'\nУслуги с техническими ошибками ({len(res_errors)}): \n')
     p_res(res_errors)
     # выводим на печать прочие ошибки
-    print('\n Неопознанные ошибки: \n')
+    print(f'\n Неопознанные ошибки ({len(res_4man_check)}): \n')
     p_res(res_4man_check)
+
+    # выводим итоговые цифры
+    print('\nИтого: \n')
+    print(f'Услуги ОК: {len(res_ok)}')
+    print(f'Услуги, которые не выведены: {len(res_bad_url)}')
+    print(f'Услуги с техническими ошибками: {len(res_errors)}')
+    print(f'Неопознанные ошибки на услугах: {len(res_4man_check)}')
+    print(f'Услуги, по которым не попал в формат: {len(res_with_format)}')
 
 
 if __name__ == '__main__':
 
     try:
-        create_urls_list()
-        open_urls()
+        #create_urls_list()
+        #open_urls()
         route_answers()
         end_time = datetime.now()  # для рассчета времени выполнения скрипта
         work_time = end_time - start_time  # рассчет времени вполнения скрипта
