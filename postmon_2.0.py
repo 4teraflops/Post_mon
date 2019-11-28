@@ -22,7 +22,7 @@ res_ok = {}  # услуги, по которым пройдена валидац
 db_ok_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_ok.data'
 
 res_errors = {}  # переменные для маппинга технических ошибок
-db_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'db_errors.data'
+db_errors_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_errors.data'
 word_errors_path = os.getcwd() + os.sep + 'words' + os.sep + 'errors.txt'
 word_errors = {}
 
@@ -48,10 +48,10 @@ def create_urls_list():
             urls.append(url)  # запись в общий список ссылок
     print(" Ок")
     # если надо будет чекнуть сколько кодов услуг отсечено, выводим метрики и смотрим.
-    # print(f'Service cods - {len(service_cods)}')
-    # print(f'Stop list - {len(stop_list_cods)}')
-    # print(f'Urls - {len(urls)}')
-    # print(f'Отсечено - {(len(service_cods) - len(urls))}')
+    print(f'Service cods - {len(service_cods)}')
+    print(f'Stop list - {len(stop_list_cods)}')
+    print(f'Urls - {len(urls)}')
+    print(f'Отсечено - {(len(service_cods) - len(urls))}')
 
 
 def update_db(dbname, dictname):
@@ -61,7 +61,7 @@ def update_db(dbname, dictname):
 
 
 def open_db(dbname, d_name):
-    print(f'Загружаю данные из {dbname}...', end='')
+    print(f'\nЗагружаю данные из {dbname}...', end='')
     try:  # подгружаем словарь
         f = open(dbname, 'rb')
         d_name = pickle.load(f)
@@ -102,7 +102,8 @@ def route_answers():
     first_res = open_db(db_first, first_test_res)  # подгружаем собранные данные из проверки ссылок
     word_ok_res = open_word(word_ok, word_ok_path)  # подгружаем словарь с норм результатами проверки
     word_format = open_word(word_with_format, word_with_format_path)  # подгружаем словарь с ошибками по формату
-    word_errors_res = open_word(word_errors, word_errors_path)
+    word_errors_res = open_word(word_errors, word_errors_path)  # подгружаем словарь с тех. ошибками
+
     for key, value in first_res.items():
         if value[0] == 200 or value[1] in word_ok_res:
             res_ok[key] = 'ok'
@@ -114,6 +115,7 @@ def route_answers():
             res_with_format[key] = value[1]
         else:
             res_4man_check[key] = value[1]
+
     update_db(db_ok_path, res_ok)
     update_db(db_bad_url_path, res_bad_url)
     update_db(db_errors_path, res_errors)
@@ -144,8 +146,8 @@ def route_answers():
 if __name__ == '__main__':
 
     try:
-        #create_urls_list()
-        #open_urls()
+        create_urls_list()
+        open_urls()
         route_answers()
         end_time = datetime.now()  # для рассчета времени выполнения скрипта
         work_time = end_time - start_time  # рассчет времени вполнения скрипта
