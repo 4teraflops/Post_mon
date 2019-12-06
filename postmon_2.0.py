@@ -35,7 +35,7 @@ db_4man_check_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_4man_check.data
 
 def create_urls_list():
     print("Составляю список ссылок для итераций...", end="")
-    with open('cods1.txt', 'rU') as f:  # читаем содержимое со всеми кодами услуг
+    with open('cods.txt', 'rU') as f:  # читаем содержимое со всеми кодами услуг
         service_cods = f.read().split('\n')  # читаем, считая перенос строки за разделитель
     with open('stop_list_cods.txt','rU') as f:  # читаем содержимое файла со стоп листом (те услуги, которые не надо чекать)
         stop_list_cods = f.read().split('\n')  # записываем все ненужные коды в переменную
@@ -48,10 +48,10 @@ def create_urls_list():
             urls.append(url)  # запись в общий список ссылок
     print(" Ок")
     # если надо будет чекнуть сколько кодов услуг отсечено, выводим метрики и смотрим.
-    print(f'Service cods - {len(service_cods)}')
-    print(f'Stop list - {len(stop_list_cods)}')
-    print(f'Urls - {len(urls)}')
-    print(f'Отсечено - {(len(service_cods) - len(urls))}')
+    #print(f'Service cods - {len(service_cods)}')
+    #print(f'Stop list - {len(stop_list_cods)}')
+    #print(f'Urls - {len(urls)}')
+    #print(f'Отсечено - {(len(service_cods) - len(urls))}')
 
 
 def update_db(dbname, dictname):
