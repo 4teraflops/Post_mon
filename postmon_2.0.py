@@ -1,10 +1,13 @@
 import os
 import pickle
 import requests
+import json
+import time
 from datetime import datetime
 
 s = requests.Session()
 urls = []
+urlsA = []
 start_time = datetime.now()
 
 db_first = 'first_db.data'
@@ -32,12 +35,15 @@ db_bad_url_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_bad_url.data'
 res_4man_check = {}  # неопознанные ошбки
 db_4man_check_path = os.getcwd() + os.sep + 'res' + os.sep + 'db_4man_check.data'
 
+res_A = {} #  Словарь для клиентов классаА
+
 
 def create_urls_list():
     print("Составляю список ссылок для итераций...", end="")
     with open('cods.txt', 'rU') as f:  # читаем содержимое со всеми кодами услуг
         service_cods = f.read().split('\n')  # читаем, считая перенос строки за разделитель
-    with open('stop_list_cods.txt','rU') as f:  # читаем содержимое файла со стоп листом (те услуги, которые не надо чекать)
+    with open('stop_list_cods.txt',
+              'rU') as f:  # читаем содержимое файла со стоп листом (те услуги, которые не надо чекать)
         stop_list_cods = f.read().split('\n')  # записываем все ненужные коды в переменную
     for s in service_cods:  # теперь составляем список ссылок, которые будем тестить
         if s not in stop_list_cods:
@@ -48,10 +54,10 @@ def create_urls_list():
             urls.append(url)  # запись в общий список ссылок
     print(" Ок")
     # если надо будет чекнуть сколько кодов услуг отсечено, выводим метрики и смотрим.
-    #print(f'Service cods - {len(service_cods)}')
-    #print(f'Stop list - {len(stop_list_cods)}')
-    #print(f'Urls - {len(urls)}')
-    #print(f'Отсечено - {(len(service_cods) - len(urls))}')
+    # print(f'Service cods - {len(service_cods)}')
+    # print(f'Stop list - {len(stop_list_cods)}')
+    # print(f'Urls - {len(urls)}')
+    # print(f'Отсечено - {(len(service_cods) - len(urls))}')
 
 
 def update_db(dbname, dictname):
@@ -142,15 +148,47 @@ def route_answers():
     print(f'Неопознанные ошибки на услугах: {len(res_4man_check)}')
     print(f'Услуги, по которым не попал в формат: {len(res_with_format)}')
 
+    #  Теперь чекнем есть ли в ошибках клиенты класса А
+    with open('codsA.txt', 'rU') as f:
+        codsA = f.read().split('\n')
+
+    #  вытаскиваем все ключи из списков тех. ошибок и неопознанных ошибок и складываем в отдельный словарь
+
+    for key in res_errors.keys():
+        if key in codsA:
+            res_A[key] = res_errors[key]
+
+    for key in res_4man_check:
+        if key in codsA:
+            res_A[key] = res_4man_check[key]
+
+    #  выводим на печать результат, если есть что печатать
+    if len(codsA) >= 0:
+        print('\n Ошибки по клиентам класса А: ')
+        for key, value in res_A.items():
+            alarmtext = f'{key} - {value}'
+            print(alarmtext)
+            do_alarm(alarmtext)
+            print('Сообщения отправлены в Slack')
+
+
+def do_alarm(alarmtext):  # отправка сообщения в канал slack
+    headers = {"Content-type": "application/json"}
+    url = "https://hooks.slack.com/services/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"
+    payload = {"text": f"{alarmtext}"}
+    r = requests.post(url, headers=headers, data=json.dumps(payload))
+
 
 if __name__ == '__main__':
 
     try:
-        create_urls_list()
-        open_urls()
-        route_answers()
-        end_time = datetime.now()  # для рассчета времени выполнения скрипта
-        work_time = end_time - start_time  # рассчет времени вполнения скрипта
-        print(f'Время исполнения: {work_time}')
+        while True:
+            # create_urls_list()
+            # open_urls()
+            route_answers()
+            end_time = datetime.now()  # для рассчета времени выполнения скрипта
+            work_time = end_time - start_time  # рассчет времени вполнения скрипта
+            print(f'Время исполнения: {work_time}')
+            time.sleep(3600)
     except (KeyboardInterrupt, SystemExit):
         print('\nВы завершили работу программы. Закрываюсь.')

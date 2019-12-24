@@ -82,7 +82,7 @@ def open_word(wordname, wordpath):  # открыть словарь по при�
 def check_urls(urls_list):
     for url in urls_list:  # запуск теста перебором всего списка ссылок
         chrome_options = Options()  # задаем параметры запуска драйвера, чтоб не крашился (когда работает во много потоков)
-        chrome_options.add_argument('--headless')  # скрывать окна хрома
+        #chrome_options.add_argument('--headless')  # скрывать окна хрома
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(cd_dir_path, chrome_options=chrome_options)  # указал где брать гугл хром драйвер
