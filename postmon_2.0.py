@@ -103,7 +103,7 @@ def route_answers():
     word_ok_res = open_word(word_ok, word_ok_path)  # подгружаем словарь с норм результатами проверки
     word_format = open_word(word_with_format, word_with_format_path)  # подгружаем словарь с ошибками по формату
     word_errors_res = open_word(word_errors, word_errors_path)  # подгружаем словарь с тех. ошибками
-
+    # структурируем полученную инфу
     for key, value in first_res.items():
         if value[0] == 200 or value[1] in word_ok_res:
             res_ok[key] = 'ok'
@@ -115,7 +115,7 @@ def route_answers():
             res_with_format[key] = value[1]
         else:
             res_4man_check[key] = value[1]
-
+    # Апдейтим данные в файл
     update_db(db_ok_path, res_ok)
     update_db(db_bad_url_path, res_bad_url)
     update_db(db_errors_path, res_errors)
@@ -130,7 +130,7 @@ def route_answers():
     # выводим на печать технические ошибки
     print(f'\nУслуги с техническими ошибками ({len(res_errors)}): \n')
     p_res(res_errors)
-    # выводим на печать прочие ошибки
+    # выводим на печать неразобранные ошибки
     print(f'\n Неопознанные ошибки ({len(res_4man_check)}): \n')
     p_res(res_4man_check)
 
